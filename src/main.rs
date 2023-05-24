@@ -15,7 +15,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
-    static ref RE: Regex = Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/call-[\w_\-]+/shard-\d{1,5}/(?:script|rc|gcs_delocalization\.sh|gcs_localization\.sh|gcs_transfer\.sh|stdout|stderr|pipelines-logs/action/\d+/(?:stderr|stdout))").unwrap();
+    static ref RE: Regex = Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/call-[\w_\-]+(/shard-\d{1,5})?/(?:script|rc|gcs_delocalization\.sh|gcs_localization\.sh|gcs_transfer\.sh|stdout|stderr|pipelines-logs/action/\d+/(?:stderr|stdout))").unwrap();
 }
 
 #[derive(Parser, Debug)]
@@ -123,7 +123,6 @@ async fn handle_removal(
 async fn main() -> Result<()> {
     let args: Args = Args::parse();
     let client = Arc::new(get_client().await?);
-
     let gs_path = parse_gsutil_path(&args.bucket)?;
 
     eprintln!("Listing objects in bucket: {gs_path:?}");
@@ -145,9 +144,14 @@ async fn main() -> Result<()> {
         })
         .await?;
 
-    if args.dry_run {
-        println!("Would delete the following objects:");
+    if res.items.is_some() {
+        if args.dry_run {
+            println!("Would delete the following objects:");
+        }
+    } else {
+        println!("No objects found in path: {}", args.bucket);
     }
+
     // spawn a thread to handle this response
     tokio::spawn(handle_removal(res.items, Arc::clone(&client), args.dry_run));
 

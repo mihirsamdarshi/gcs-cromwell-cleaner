@@ -15,7 +15,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
-    static ref RE: Regex = Regex::new(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/call-[a-z\-_]*/shard-\d{1,4}/(script|rc|gcs_delocalization\.sh|gcs_localization\.sh|gcs_transfer\.sh|stdout|stderr)").unwrap();
+    static ref RE: Regex = Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/call-[\w_\-]+/shard-\d{1,5}/(?:script|rc|gcs_delocalization\.sh|gcs_localization\.sh|gcs_transfer\.sh|stdout|stderr|pipelines-logs/action/\d+/(?:stderr|stdout))").unwrap();
 }
 
 #[derive(Parser, Debug)]

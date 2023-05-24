@@ -87,7 +87,7 @@ async fn remove_objects(client: Arc<Client>, items: Vec<Object>) -> Result<()> {
 
 /// Iterate over each object in the bucket and print the ones that match our
 /// regex
-async fn filter_objects(items: Vec<Object>) -> Vec<Object> {
+fn filter_objects(items: Vec<Object>) -> Vec<Object> {
     items
         .into_iter()
         // Filter out any objects that don't match our regex
@@ -107,10 +107,10 @@ async fn handle_removal(
     dry_run: bool,
 ) -> Result<()> {
     if let Some(items) = items {
-        let filtered_objects = filter_objects(items).await;
+        let filtered_objects = filter_objects(items);
         if dry_run {
             for obj in filtered_objects {
-                eprintln!("gs://{}/{}", obj.bucket, obj.name);
+                println!("Would delete: gs://{}/{}", obj.bucket, obj.name);
             }
         } else {
             remove_objects(client, filtered_objects).await?;
@@ -144,16 +144,15 @@ async fn main() -> Result<()> {
         })
         .await?;
 
-    if res.items.is_some() {
-        if args.dry_run {
-            println!("Would delete the following objects:");
-        }
-    } else {
-        println!("No objects found in path: {}", args.bucket);
+    if res.items.is_none() {
+        eprintln!("No objects found in path: {}", args.bucket);
+        std::process::exit(0)
     }
 
+    let mut set = tokio::task::JoinSet::new();
+
     // spawn a thread to handle this response
-    tokio::spawn(handle_removal(res.items, Arc::clone(&client), args.dry_run));
+    set.spawn(handle_removal(res.items, Arc::clone(&client), args.dry_run));
 
     while let Some(ref page) = res.next_page_token {
         // do our next request
@@ -166,11 +165,16 @@ async fn main() -> Result<()> {
             })
             .await?;
         // spawn a thread to handle this list response
-        tokio::spawn(handle_removal(
+        set.spawn(handle_removal(
             res.items,
             Arc::clone(&client),
-            args.dry_run.clone(),
+            args.dry_run,
         ));
+    }
+
+    eprintln!("Finished listing objects, waiting for removal to complete...");
+    while let Some(res) = set.join_next().await {
+        res??;
     }
 
     Ok(())
@@ -214,8 +218,8 @@ mod test {
         assert_eq!(gs_path.folder, "my_folder/my_obj.txt");
     }
 
-    #[tokio::test]
-    async fn test_filter_objects() {
+    #[test]
+    fn test_filter_objects() {
         // test the list_objects function
         let items = vec![
             Object {
@@ -233,7 +237,7 @@ mod test {
             },
         ];
 
-        let filtered_items = filter_objects(items).await;
+        let filtered_items = filter_objects(items);
         assert_eq!(filtered_items.len(), 1);
         assert_eq!(
             filtered_items[0].name,
@@ -254,7 +258,7 @@ mod test {
             },
         ];
 
-        let filtered_items = filter_objects(items).await;
+        let filtered_items = filter_objects(items);
         assert_eq!(filtered_items.len(), 0);
     }
 }

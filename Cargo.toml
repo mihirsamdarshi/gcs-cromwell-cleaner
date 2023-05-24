@@ -1,0 +1,17 @@
+[package]
+name = "gcs-cromwell-cleaner"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mihir Samdarshi <msamdars@stanford.edu>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { version = "1", features = ["std", "backtrace"] }
+clap = { version = "4.3", features = ["derive"] }
+futures = { version = "0.3", default-features = false}
+google-cloud-default = { version = "0.2", features = ["storage"], default-features = false }
+google-cloud-storage = "0.11"
+lazy_static = "1.4.0"
+regex = { version = "1.8", features = ["std"], default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "parking_lot"], default-features = false }
